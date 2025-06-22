@@ -1,0 +1,28 @@
+# Ignore build and dependency directories
+node_modules/
+dist/
+build/
+coverage/
+
+# Ignore environment and configuration files
+.env
+package-lock.json
+yarn.lock
+pnpm-lock.yaml
+
+# Ignore public assets and compiled files
+public/
+.next/   # Next.js build output
+out/     # Static exports in Next.js
+
+# Ignore database and log files
+*.log
+*.sqlite
+*.db
+
+# Ignore generated files
+*.min.js
+*.min.css
+
+# Ignore specific files if needed
+src/some-large-file.js

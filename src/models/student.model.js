@@ -12,28 +12,44 @@ const semesterSchema = new Schema({
                 type: String,
                 required: true,
             },
+
             paperCode:{
                 type: String,
                 required: true,
             },
+
             paperName: {
                 type: String,
                 required: true,
             },
+
             type:{type: String},
             credits: Number,
             internal: {
                 type: Number,
                 default: 0,
             },
+
             external: {
                 type: Number,
                 default: 0,
             },
+
             total: {
                 type: Number,
                 default: 0,
             },
+
+            reappear:{
+                type: Boolean,
+                default: false,
+            },
+
+            backlog: {
+                type: Boolean, 
+                default: false,
+            },
+            
             grade: {
                 type: String,
                 default: "",

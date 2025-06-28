@@ -7,6 +7,7 @@ const semesterSchema = new Schema({
     },
     subjectCount: Number,
     subjects: [
+        new Schema(
         {
             paperId: {
                 type: String,
@@ -54,10 +55,19 @@ const semesterSchema = new Schema({
                 type: String,
                 default: "",
             },
-        },
+        },{_id:false})
     ],
+    totalMarks: Number,
+    maxMarks: Number,
+    totalCredits: Number,
+    maxCredits: Number,
+    totalCreditMarks: Number,
+    maxCreditMarks: Number,
+    percentage: Number,
+    creditPercentage: Number,
+    sgpa:Number,
     
-});
+},{_id:false});
 
 const studentSchema = new Schema({
     enrollment: {

@@ -15,6 +15,8 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 
+import resultUploadRouter from './routes/resultUpload.route.js';
 
+app.use('/api/v1/result', resultUploadRouter);
 
 export default app;

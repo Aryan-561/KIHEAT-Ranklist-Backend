@@ -91,11 +91,14 @@ const studentSchema = new Schema({
         required: true,
         index: true,
     },
-    prgCode: String,
+    prgCode: {
+        type:String,
+        required:true,
+        index:true,
+    },
     programme: {
         type: String,
-        required: true,
-        index: true,    
+        required: true,    
     },
     semesters: [semesterSchema],
 });

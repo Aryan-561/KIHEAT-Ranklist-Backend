@@ -84,15 +84,12 @@ const getStudentByEnrollment = asyncHandler(async (req, res) => {
 
     // Handle not found
     if (result.length === 0) {
-        return res
-            .status(404)
-            .json(
-                new ApiResponse(
+        throw new ApiError(
                     404,
+                    `No student found with enrollment number '${enrollment.trim()}'`,
                     {},
-                    `No student found with enrollment number '${enrollment.trim()}'`
                 )
-            );
+            
     }
 
     // Return the single student object
@@ -172,9 +169,8 @@ const getStudentsByName = asyncHandler(async (req, res) => {
         const msg = programme
             ? `No students found matching '${name.trim()}' in programme '${programme.trim()}'.`
             : `No students found matching '${name.trim()}'.`;
-        return res.status(404).json(new ApiResponse(404, [], msg));
+        throw new ApiError(404, msg, []);
     }
-
     // 6) Success
     const successMsg = programme
         ? `Found ${

@@ -58,15 +58,7 @@ const getProgrammeResult = asyncHandler(async (req, res) => {
     // No data exists before 2022
     const batchYear = Number(batch);
     if (isNaN(batchYear) || batchYear < 2022) {
-        return res
-            .status(404)
-            .json(
-                new ApiResponse(
-                    404,
-                    [],
-                    `No result data available for batch ${batch}`
-                )
-            );
+        throw new ApiError(404,`No result data available for batch ${batch}`,[])
     }
 
     // Aggregation pipeline to compute totals and GPA
@@ -120,15 +112,8 @@ const getProgrammeResult = asyncHandler(async (req, res) => {
 
     // Handle case where no students matched
     if (students.length === 0) {
-        return res
-            .status(404)
-            .json(
-                new ApiResponse(
-                    404,
-                    [],
-                    `No students found for programme ${programme} in batch ${batch}`
-                )
-            );
+         throw new ApiError(404,`No students found for programme ${programme} in batch ${batch}`, []);
+            
     }
 
     // Success response

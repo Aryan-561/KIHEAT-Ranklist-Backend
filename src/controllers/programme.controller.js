@@ -115,7 +115,7 @@ const getProgrammeResult = asyncHandler(async (req, res) => {
          throw new ApiError(404,`No students found for programme ${programme} in batch ${batch}`, []);
             
     }
-
+    
     // Success response
     return res
         .status(200)
@@ -128,4 +128,36 @@ const getProgrammeResult = asyncHandler(async (req, res) => {
         );
 });
 
-export { getProgrammeResult };
+const getProgrammeBatches = asyncHandler(async(req, res)=>{
+    // Extract programme from params
+    const { programme } = req.params;
+
+    // Validate programme parameter
+    if (!programme?.trim()) {
+        throw new ApiError(400, "Programme parameter cannot be empty");
+    }
+
+    const prgCodeMap = {
+        bca: "020",
+        bba: "017",
+        bcom: "888",
+    };
+
+    const prgCode = prgCodeMap[programme.trim().toLowerCase()];
+    if (!prgCode) {
+        throw new ApiError(
+            400,
+            `Invalid programme ${programme}. Valid options are: ${Object.keys(prgCodeMap).join(", ")}`
+        );
+    }
+
+    // Fetch distinct batches for the given programme
+    const batches = await Student.distinct("batch", { prgCode });
+
+    // Return the list of batches
+    return res.status(200).json(
+        new ApiResponse(200, batches, `Fetched ${batches.length} batch(es) for programme '${programme}'`)
+    );
+})
+
+export { getProgrammeResult, getProgrammeBatches };

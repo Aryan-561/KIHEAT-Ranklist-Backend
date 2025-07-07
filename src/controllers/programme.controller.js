@@ -19,9 +19,8 @@ import { Student } from "../models/student.model.js";
  * @param   {string}   req.params.batch      Academic batch year (e.g. "2023")
  *
  * @returns {ApiResponse}
- *   
+ *
  */
-
 
 const getProgrammeResult = asyncHandler(async (req, res) => {
     // Destructure and trim inputs
@@ -58,7 +57,11 @@ const getProgrammeResult = asyncHandler(async (req, res) => {
     // No data exists before 2022
     const batchYear = Number(batch);
     if (isNaN(batchYear) || batchYear < 2022) {
-        throw new ApiError(404,`No result data available for batch ${batch}`,[])
+        throw new ApiError(
+            404,
+            `No result data available for batch ${batch}`,
+            []
+        );
     }
 
     // Aggregation pipeline to compute totals and GPA
@@ -68,26 +71,67 @@ const getProgrammeResult = asyncHandler(async (req, res) => {
             $match: { prgCode, batch },
         },
         {
-            // Count semesters and sum their SGPA
+            
             $addFields: {
                 semestersCount: { $size: { $ifNull: ["$semesters", []] } },
-                totalSGPA: { $sum: "$semesters.sgpa" },
+                totalMarks: { $sum: "$semesters.totalMarks" },
+                maxMarks: { $sum: "$semesters.maxMarks" },
+                totalCreditMarks: { $sum: "$semesters.totalCreditMarks" },
+                maxCreditMarks: { $sum: "$semesters.maxCreditMarks" },
+                totalCredits: { $sum: "$semesters.totalCredits" },
+                maxCredits: { $sum: "$semesters.maxCredits" },
+                totalWeightedSGPA:{
+                    $sum:{
+                        $map:{
+                            input:"$semesters",
+                            as:"sem",
+                            in:{
+                                $multiply:["$$sem.sgpa", "$$sem.maxCredits"]
+                            }
+                        }
+                    }
+                }
             },
         },
         {
-            // Compute overall GPA, guarding against division by zero
             $addFields: {
-                gpa: {
+                cgpa: {
                     $cond: [
                         { $gt: ["$semestersCount", 0] },
-                        { $divide: ["$totalSGPA", "$semestersCount"] },
-                        0,
-                    ],
+                        {
+                            $round: [
+                                { $divide: ["$totalWeightedSGPA", "$maxCredits"] },
+                                3
+                            ]
+                        },
+                        0
+                    ]
                 },
-            },
+                percentage: {
+                    $round: [
+                        {
+                            $multiply: [
+                                { $divide: ["$totalMarks", "$maxMarks"] },
+                                100
+                            ]
+                        },
+                        3
+                    ]
+                },
+
+                creditPrecentage:{
+                    $round:[{
+                        $multiply:[
+                            { $divide: ["$totalCreditMarks", "$maxCreditMarks"] },
+                            100
+                        ]
+                    },3]
+                }
+            }
         },
+
         {
-            // Select only the fields we want to expose
+            // Project only the desired fields
             $project: {
                 enrollment: 1,
                 name: 1,
@@ -97,25 +141,32 @@ const getProgrammeResult = asyncHandler(async (req, res) => {
                 batch: 1,
                 prgCode: 1,
                 programme: 1,
-                totalMarks: { $sum: "$semesters.totalMarks" },
-                maxMarks: { $sum: "$semesters.maxMarks" },
-                totalCreditMarks: { $sum: "$semesters.totalCreditMarks" },
-                maxCreditMarks: { $sum: "$semesters.maxCreditMarks" },
-                totalCredits: { $sum: "$semesters.totalCredits" },
-                maxCredits: { $sum: "$semesters.maxCredits" },
+                totalSGPA:1,
+                totalMarks: 1,
+                maxMarks: 1,
+                totalCreditMarks:1,
+                maxCreditMarks: 1,
                 semestersCount: 1,
-                gpa: 1,
+                totalCredits: 1,
+                maxCredits: 1,
+                cgpa: 1,
+                percentage:1,
+                creditPrecentage:1,
                 semesters: 1,
+               
             },
         },
     ]);
 
     // Handle case where no students matched
     if (students.length === 0) {
-         throw new ApiError(404,`No students found for programme ${programme} in batch ${batch}`, []);
-            
+        throw new ApiError(
+            404,
+            `No students found for programme ${programme} in batch ${batch}`,
+            []
+        );
     }
-    
+
     // Success response
     return res
         .status(200)
@@ -128,7 +179,7 @@ const getProgrammeResult = asyncHandler(async (req, res) => {
         );
 });
 
-const getProgrammeBatches = asyncHandler(async(req, res)=>{
+const getProgrammeBatches = asyncHandler(async (req, res) => {
     // Extract programme from params
     const { programme } = req.params;
 
@@ -147,7 +198,9 @@ const getProgrammeBatches = asyncHandler(async(req, res)=>{
     if (!prgCode) {
         throw new ApiError(
             400,
-            `Invalid programme ${programme}. Valid options are: ${Object.keys(prgCodeMap).join(", ")}`
+            `Invalid programme ${programme}. Valid options are: ${Object.keys(
+                prgCodeMap
+            ).join(", ")}`
         );
     }
 
@@ -155,9 +208,15 @@ const getProgrammeBatches = asyncHandler(async(req, res)=>{
     const batches = await Student.distinct("batch", { prgCode });
 
     // Return the list of batches
-    return res.status(200).json(
-        new ApiResponse(200, batches, `Fetched ${batches.length} batch(es) for programme '${programme}'`)
-    );
-})
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                batches,
+                `Fetched ${batches.length} batch(es) for programme '${programme}'`
+            )
+        );
+});
 
 export { getProgrammeResult, getProgrammeBatches };

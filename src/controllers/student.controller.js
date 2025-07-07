@@ -37,24 +37,65 @@ const getStudentByEnrollment = asyncHandler(async (req, res) => {
             $match: { enrollment: enrollment.trim() },
         },
         {
-            // Count semesters and sum their SGPA values
+            
             $addFields: {
                 semestersCount: { $size: { $ifNull: ["$semesters", []] } },
-                totalSGPA: { $sum: "$semesters.sgpa" },
+                totalMarks: { $sum: "$semesters.totalMarks" },
+                maxMarks: { $sum: "$semesters.maxMarks" },
+                totalCreditMarks: { $sum: "$semesters.totalCreditMarks" },
+                maxCreditMarks: { $sum: "$semesters.maxCreditMarks" },
+                totalCredits: { $sum: "$semesters.totalCredits" },
+                maxCredits: { $sum: "$semesters.maxCredits" },
+                totalWeightedSGPA:{
+                    $sum:{
+                        $map:{
+                            input:"$semesters",
+                            as:"sem",
+                            in:{
+                                $multiply:["$$sem.sgpa", "$$sem.maxCredits"]
+                            }
+                        }
+                    }
+                }
             },
         },
         {
-            // Compute overall GPA, avoid division by zero
             $addFields: {
-                gpa: {
+                cgpa: {
                     $cond: [
                         { $gt: ["$semestersCount", 0] },
-                        { $divide: ["$totalSGPA", "$semestersCount"] },
-                        0,
-                    ],
+                        {
+                            $round: [
+                                { $divide: ["$totalWeightedSGPA", "$maxCredits"] },
+                                3
+                            ]
+                        },
+                        0
+                    ]
                 },
-            },
+                percentage: {
+                    $round: [
+                        {
+                            $multiply: [
+                                { $divide: ["$totalMarks", "$maxMarks"] },
+                                100
+                            ]
+                        },
+                        3
+                    ]
+                },
+
+                creditPrecentage:{
+                    $round:[{
+                        $multiply:[
+                            { $divide: ["$totalCreditMarks", "$maxCreditMarks"] },
+                            100
+                        ]
+                    },3]
+                }
+            }
         },
+
         {
             // Project only the desired fields
             $project: {
@@ -66,15 +107,19 @@ const getStudentByEnrollment = asyncHandler(async (req, res) => {
                 batch: 1,
                 prgCode: 1,
                 programme: 1,
-                totalMarks: { $sum: "$semesters.totalMarks" },
-                maxMarks: { $sum: "$semesters.maxMarks" },
-                totalCreditMarks: { $sum: "$semesters.totalCreditMarks" },
-                maxCreditMarks: { $sum: "$semesters.maxCreditMarks" },
-                totalCredits: { $sum: "$semesters.totalCredits" },
-                maxCredits: { $sum: "$semesters.maxCredits" },
+                totalSGPA:1,
+                totalMarks: 1,
+                maxMarks: 1,
+                totalCreditMarks:1,
+                maxCreditMarks: 1,
                 semestersCount: 1,
-                gpa: 1,
+                totalCredits: 1,
+                maxCredits: 1,
+                cgpa: 1,
+                percentage:1,
+                creditPrecentage:1,
                 semesters: 1,
+               
             },
         },
     ];

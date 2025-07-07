@@ -125,12 +125,13 @@ const processResults = asyncHandler(async (req, res) => {
                     const total = Number(subjectData.total) || 0;
                     const isBacklog = !(total > 39);
 
-                    const credits =
-                        total > 39 ? Number(subjectDetails[paperCode].credits) : 0;
-                    totalCredits += credits;
-                    maxCredits += Number(subjectDetails[paperCode].credits);
+                    const credits = Number(subjectDetails[paperCode].credits);
 
-                    totalCreditMarks += credits * Number(subjectData?.total) || 0;
+                    totalCredits += total > 39 ? credits  : 0;
+                    maxCredits += credits;
+                
+                    totalCreditMarks += credits * (Number(subjectData?.total) || 0);
+
                     subjectCount += 1;
 
 
@@ -298,14 +299,13 @@ const processReappearResults = asyncHandler(async (req, res) => {
 
                     const total = Number(subjectData.total) || 0;
                     const isBacklog = !(total > 39);
-                    const credits = total > 39 ? Number(subjectDetails[paperCode].credits) : 0;
+                    
 
                     semester.subjects.push({
                         paperId: subjectDetails[paperCode].paperID,
                         paperCode: paperCode,
                         paperName: subjectDetails[paperCode].paperName,
                         type: subjectDetails[paperCode].type,
-                        credits: credits,
                         internal: Number(subjectData.internal) || 0,
                         external: Number(subjectData.external) || 0,
                         total: total,
@@ -323,6 +323,8 @@ const processReappearResults = asyncHandler(async (req, res) => {
                 );
 
                 if (studentExists) {
+
+
                     // Update semester subjects
                     studentExists.semesters.forEach((sem) => {
                         if (sem.sem === semester.sem) {
@@ -336,7 +338,7 @@ const processReappearResults = asyncHandler(async (req, res) => {
                                         sem.totalMarks - sub.total + updatedSubject.total;
 
                                     sem.totalMarks = totalMarks;
-                                    sem.totalCreditMarks += updatedSubject.credits * updatedSubject.total;
+                                    sem.totalCreditMarks = sem.totalCreditMarks - (sub.credits*sub.total) + (sub.credits * updatedSubject.total) ;
 
                                     sem.percentage = calPercentage(totalMarks, sem.maxMarks);
                                     sem.creditPercentage = calPercentage(sem.totalCreditMarks, sem.maxCreditMarks);
@@ -346,12 +348,12 @@ const processReappearResults = asyncHandler(async (req, res) => {
                                     sub.external = updatedSubject.external;
                                     sub.total = updatedSubject.total;
                                     sub.grade = updatedSubject.grade;
-                                    sub.credits = updatedSubject.credits;
+                                    // sub.credits = updatedSubject.credits;
                                     sub.backlog = updatedSubject.backlog;
                                     sub.reappear = updatedSubject.reappear;
 
                                     // Recalculate total credit and sgpa
-                                    sem.totalCredits += updatedSubject.credits;
+                                    sem.totalCredits += Number(updatedSubject.total) >39 ? sub.credits : 0;;
                                     sem.sgpa = calSGPA(sem.subjects, sem.maxCredits);
                                 }
                             });

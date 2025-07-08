@@ -1,5 +1,5 @@
 import express  from 'express'
-import { getStudentByEnrollment, getStudentsByName } from '../controllers/student.controller.js';
+import { getStudentByEnrollment, getStudentsByName, getTopStudents } from '../controllers/student.controller.js';
 
 const router =  express.Router();
 
@@ -10,11 +10,13 @@ const router =  express.Router();
 router.route('/search-by-name').get(getStudentsByName)
 
 
+router.route('/top-students').get(getTopStudents)
 
 // get student's result data with enrollment
 
 // GET student/:enrollment     eg: student/:01196702023
 router.route('/:enrollment').get(getStudentByEnrollment)
+
 
 
 export default router;

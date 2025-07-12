@@ -169,7 +169,7 @@ const getStudentByEnrollment = asyncHandler(async (req, res) => {
  */
 const getStudentsByName = asyncHandler(async (req, res) => {
     // 1) Extract and validate `name`
-    const { name = "", programme = "" } = req.query;
+    const { name = "", programme = ""} = req.query;
     if (!name.trim()) {
         throw new ApiError(400, "`name` query parameter is required");
     }
@@ -196,6 +196,39 @@ const getStudentsByName = asyncHandler(async (req, res) => {
     const students = await Student.aggregate([
         { $match: matchStage },
         {
+            $addFields: {
+                semestersCount: { $size: { $ifNull: ["$semesters", []] } },
+                maxCredits: { $sum: "$semesters.maxCredits" },
+                totalWeightedSGPA:{
+                    $sum:{
+                        $map:{
+                            input:"$semesters",
+                            as:"sem",
+                            in:{
+                                $multiply:["$$sem.sgpa", "$$sem.maxCredits"]
+                            }
+                        }
+                    }
+                }
+            },
+        },
+        {
+            $addFields: {
+                cgpa: {
+                    $cond: [
+                        { $gt: ["$semestersCount", 0] },
+                        {
+                            $round: [
+                                { $divide: ["$totalWeightedSGPA", "$maxCredits"] },
+                                3
+                            ]
+                        },
+                        0
+                    ]
+                },
+            }
+        },
+        {
             $project: {
                 enrollment: 1,
                 name: 1,
@@ -205,6 +238,7 @@ const getStudentsByName = asyncHandler(async (req, res) => {
                 batch: 1,
                 prgCode: 1,
                 programme: 1,
+                cgpa: 1,
             },
         },
     ]);
@@ -225,7 +259,6 @@ const getStudentsByName = asyncHandler(async (req, res) => {
         
     return res.status(200).json(new ApiResponse(200, students, successMsg));
 });
-
 
 
 const getTopStudents = asyncHandler(async (req, res) => {

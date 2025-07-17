@@ -229,6 +229,9 @@ const getStudentsByName = asyncHandler(async (req, res) => {
             }
         },
         {
+            $sort:{name:1}
+        },
+        {
             $project: {
                 enrollment: 1,
                 name: 1,
@@ -240,7 +243,7 @@ const getStudentsByName = asyncHandler(async (req, res) => {
                 programme: 1,
                 cgpa: 1,
             },
-        },
+        },     
     ]);
 
     // 5) Handle no-results

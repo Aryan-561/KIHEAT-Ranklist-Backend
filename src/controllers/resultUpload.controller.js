@@ -311,7 +311,7 @@ const processReappearResults = asyncHandler(async (req, res) => {
                         total: total,
                         grade: isBacklog? "F": subjectData.totalGrade,
                         backlog: isBacklog,
-                        reappear: true,
+                        reappear: student.resultHeader.exam.toLowerCase().includes("reappear")?true:false,
                     });
                 }
 

@@ -5,7 +5,7 @@ const app = express();
 
 app.use(cors(
     {
-        origin: ["https://kiheatranklist.vercel.app","http://localhost:5173"],
+        origin: ["https://kiheatranklist.vercel.app","http://localhost:5173","https://kiheat-ranklist-frontend-git-local-aryan-561s-projects.vercel.app/"],
         methods: ['GET', 'POST','PUT', 'DELETE'], // Allow specific HTTP methods
     }
 ));

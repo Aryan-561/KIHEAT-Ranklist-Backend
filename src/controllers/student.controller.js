@@ -37,7 +37,7 @@ const getStudentByEnrollment = asyncHandler(async (req, res) => {
             $match: { enrollment: enrollment.trim() },
         },
         {
-            
+
             $addFields: {
                 semestersCount: { $size: { $ifNull: ["$semesters", []] } },
                 totalMarks: { $sum: "$semesters.totalMarks" },
@@ -46,13 +46,13 @@ const getStudentByEnrollment = asyncHandler(async (req, res) => {
                 maxCreditMarks: { $sum: "$semesters.maxCreditMarks" },
                 totalCredits: { $sum: "$semesters.totalCredits" },
                 maxCredits: { $sum: "$semesters.maxCredits" },
-                totalWeightedSGPA:{
-                    $sum:{
-                        $map:{
-                            input:"$semesters",
-                            as:"sem",
-                            in:{
-                                $multiply:["$$sem.sgpa", "$$sem.maxCredits"]
+                totalWeightedSGPA: {
+                    $sum: {
+                        $map: {
+                            input: "$semesters",
+                            as: "sem",
+                            in: {
+                                $multiply: ["$$sem.sgpa", "$$sem.maxCredits"]
                             }
                         }
                     }
@@ -85,16 +85,28 @@ const getStudentByEnrollment = asyncHandler(async (req, res) => {
                     ]
                 },
 
-                creditPrecentage:{
-                    $round:[{
-                        $multiply:[
+                creditPrecentage: {
+                    $round: [{
+                        $multiply: [
                             { $divide: ["$totalCreditMarks", "$maxCreditMarks"] },
                             100
                         ]
-                    },3]
+                    }, 3]
                 }
             }
         },
+        {
+            $addFields: {
+                semesters: {
+                    $sortArray: {
+                        input: "$semesters",
+                        sortBy: { sem: 1 }  // Ascending by semester number
+                    }
+                }
+            }
+        },
+
+
 
         {
             // Project only the desired fields
@@ -107,19 +119,19 @@ const getStudentByEnrollment = asyncHandler(async (req, res) => {
                 batch: 1,
                 prgCode: 1,
                 programme: 1,
-                totalSGPA:1,
+                totalSGPA: 1,
                 totalMarks: 1,
                 maxMarks: 1,
-                totalCreditMarks:1,
+                totalCreditMarks: 1,
                 maxCreditMarks: 1,
                 semestersCount: 1,
                 totalCredits: 1,
                 maxCredits: 1,
                 cgpa: 1,
-                percentage:1,
-                creditPrecentage:1,
+                percentage: 1,
+                creditPrecentage: 1,
                 semesters: 1,
-               
+
             },
         },
     ];
@@ -130,11 +142,11 @@ const getStudentByEnrollment = asyncHandler(async (req, res) => {
     // Handle not found
     if (result.length === 0) {
         throw new ApiError(
-                    404,
-                    `No student found with enrollment number '${enrollment.trim()}'`,
-                    {},
-                )
-            
+            404,
+            `No student found with enrollment number '${enrollment.trim()}'`,
+            {},
+        )
+
     }
 
     // Return the single student object
@@ -169,7 +181,7 @@ const getStudentByEnrollment = asyncHandler(async (req, res) => {
  */
 const getStudentsByName = asyncHandler(async (req, res) => {
     // 1) Extract and validate `name`
-    const { name = "", programme = ""} = req.query;
+    const { name = "", programme = "" } = req.query;
     if (!name.trim()) {
         throw new ApiError(400, "`name` query parameter is required");
     }
@@ -199,13 +211,13 @@ const getStudentsByName = asyncHandler(async (req, res) => {
             $addFields: {
                 semestersCount: { $size: { $ifNull: ["$semesters", []] } },
                 maxCredits: { $sum: "$semesters.maxCredits" },
-                totalWeightedSGPA:{
-                    $sum:{
-                        $map:{
-                            input:"$semesters",
-                            as:"sem",
-                            in:{
-                                $multiply:["$$sem.sgpa", "$$sem.maxCredits"]
+                totalWeightedSGPA: {
+                    $sum: {
+                        $map: {
+                            input: "$semesters",
+                            as: "sem",
+                            in: {
+                                $multiply: ["$$sem.sgpa", "$$sem.maxCredits"]
                             }
                         }
                     }
@@ -229,7 +241,7 @@ const getStudentsByName = asyncHandler(async (req, res) => {
             }
         },
         {
-            $sort:{name:1}
+            $sort: { name: 1 }
         },
         {
             $project: {
@@ -243,7 +255,7 @@ const getStudentsByName = asyncHandler(async (req, res) => {
                 programme: 1,
                 cgpa: 1,
             },
-        },     
+        },
     ]);
 
     // 5) Handle no-results
@@ -255,11 +267,10 @@ const getStudentsByName = asyncHandler(async (req, res) => {
     }
     // 6) Success
     const successMsg = programme
-        ? `Found ${
-              students.length
-          } student(s) matching '${name.trim()}' in programme '${programme.trim()}'.`
+        ? `Found ${students.length
+        } student(s) matching '${name.trim()}' in programme '${programme.trim()}'.`
         : `Found ${students.length} student(s) matching '${name.trim()}'.`;
-        
+
     return res.status(200).json(new ApiResponse(200, students, successMsg));
 });
 
@@ -273,51 +284,51 @@ const getTopStudents = asyncHandler(async (req, res) => {
     }
 
     const topStudents = await Promise.all(
-    programs.map(async (programme) => {
-        // Fetch students of this program
-        const students = await Student.find({ programme });
-
-        
-
-        // Compute CGPA for each
-        const studentsWithCgpa = students.filter(student => student.semesters.length === 6 || student.semesters.length === 8).map((student) => {
-            let totalWeightedSgpa = 0;
-            let totalCredits = 0;
-
-            student.semesters.forEach((sem) => {
-            const sgpa = sem.sgpa || 0;
-            const credits = sem.totalCredits || 0;
-            totalWeightedSgpa += sgpa * credits;
-            totalCredits += credits;
-        });
-
-        const cgpa = totalCredits > 0 ? (totalWeightedSgpa / totalCredits) : 0;
-
-        // Round to 3 decimal places
-        const roundedCgpa = Math.round(cgpa * 1000) / 1000;
-
-        return { ...student.toObject(), cgpa: roundedCgpa };
-  });
+        programs.map(async (programme) => {
+            // Fetch students of this program
+            const students = await Student.find({ programme });
 
 
-        // Find student with highest CGPA
-        const topStudent = studentsWithCgpa.reduce((prev, current) => {
-          return current.cgpa > prev.cgpa ? current : prev;
-        }, studentsWithCgpa[0]);
 
-        return {
-          programme,
-          topStudent: {
-            enrollment: topStudent.enrollment,
-            name: topStudent.name,
-            instCode: topStudent.instCode,
-            batch: topStudent.batch,
-            prgCode: topStudent.prgCode,
-            programme: topStudent.programme,
-            cgpa: topStudent.cgpa,
-          },
-        };
-      })
+            // Compute CGPA for each
+            const studentsWithCgpa = students.filter(student => student.semesters.length === 6 || student.semesters.length === 8).map((student) => {
+                let totalWeightedSgpa = 0;
+                let totalCredits = 0;
+
+                student.semesters.forEach((sem) => {
+                    const sgpa = sem.sgpa || 0;
+                    const credits = sem.totalCredits || 0;
+                    totalWeightedSgpa += sgpa * credits;
+                    totalCredits += credits;
+                });
+
+                const cgpa = totalCredits > 0 ? (totalWeightedSgpa / totalCredits) : 0;
+
+                // Round to 3 decimal places
+                const roundedCgpa = Math.round(cgpa * 1000) / 1000;
+
+                return { ...student.toObject(), cgpa: roundedCgpa };
+            });
+
+
+            // Find student with highest CGPA
+            const topStudent = studentsWithCgpa.reduce((prev, current) => {
+                return current.cgpa > prev.cgpa ? current : prev;
+            }, studentsWithCgpa[0]);
+
+            return {
+                programme,
+                topStudent: {
+                    enrollment: topStudent.enrollment,
+                    name: topStudent.name,
+                    instCode: topStudent.instCode,
+                    batch: topStudent.batch,
+                    prgCode: topStudent.prgCode,
+                    programme: topStudent.programme,
+                    cgpa: topStudent.cgpa,
+                },
+            };
+        })
     );
 
     if (topStudents.length === 0) {
@@ -333,4 +344,4 @@ const getTopStudents = asyncHandler(async (req, res) => {
 
 
 
-export { getStudentByEnrollment, getStudentsByName ,getTopStudents};
+export { getStudentByEnrollment, getStudentsByName, getTopStudents };

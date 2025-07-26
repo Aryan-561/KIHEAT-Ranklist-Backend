@@ -71,7 +71,7 @@ const getProgrammeResult = asyncHandler(async (req, res) => {
             $match: { prgCode, batch },
         },
         {
-            
+
             $addFields: {
                 semestersCount: { $size: { $ifNull: ["$semesters", []] } },
                 totalMarks: { $sum: "$semesters.totalMarks" },
@@ -80,13 +80,13 @@ const getProgrammeResult = asyncHandler(async (req, res) => {
                 maxCreditMarks: { $sum: "$semesters.maxCreditMarks" },
                 totalCredits: { $sum: "$semesters.totalCredits" },
                 maxCredits: { $sum: "$semesters.maxCredits" },
-                totalWeightedSGPA:{
-                    $sum:{
-                        $map:{
-                            input:"$semesters",
-                            as:"sem",
-                            in:{
-                                $multiply:["$$sem.sgpa", "$$sem.maxCredits"]
+                totalWeightedSGPA: {
+                    $sum: {
+                        $map: {
+                            input: "$semesters",
+                            as: "sem",
+                            in: {
+                                $multiply: ["$$sem.sgpa", "$$sem.maxCredits"]
                             }
                         }
                     }
@@ -119,17 +119,26 @@ const getProgrammeResult = asyncHandler(async (req, res) => {
                     ]
                 },
 
-                creditPrecentage:{
-                    $round:[{
-                        $multiply:[
+                creditPrecentage: {
+                    $round: [{
+                        $multiply: [
                             { $divide: ["$totalCreditMarks", "$maxCreditMarks"] },
                             100
                         ]
-                    },3]
+                    }, 3]
                 }
             }
         },
-
+        {
+            $addFields: {
+                semesters: {
+                    $sortArray: {
+                        input: "$semesters",
+                        sortBy: { sem: 1 }  // Ascending by semester number
+                    }
+                }
+            }
+        },
         {
             // Project only the desired fields
             $project: {
@@ -141,19 +150,19 @@ const getProgrammeResult = asyncHandler(async (req, res) => {
                 batch: 1,
                 prgCode: 1,
                 programme: 1,
-                totalSGPA:1,
+                totalSGPA: 1,
                 totalMarks: 1,
                 maxMarks: 1,
-                totalCreditMarks:1,
+                totalCreditMarks: 1,
                 maxCreditMarks: 1,
                 semestersCount: 1,
                 totalCredits: 1,
                 maxCredits: 1,
                 cgpa: 1,
-                percentage:1,
-                creditPrecentage:1,
+                percentage: 1,
+                creditPrecentage: 1,
                 semesters: 1,
-               
+
             },
         },
     ]);

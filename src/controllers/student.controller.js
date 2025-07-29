@@ -283,53 +283,83 @@ const getTopStudents = asyncHandler(async (req, res) => {
         throw new ApiError(404, "No programs found", []);
     }
 
-    const topStudents = await Promise.all(
-        programs.map(async (programme) => {
-            // Fetch students of this program
-            const students = await Student.find({ programme });
 
 
-
-            // Compute CGPA for each
-            const studentsWithCgpa = students.filter(student => student.semesters.length === 6 || student.semesters.length === 8).map((student) => {
-                let totalWeightedSgpa = 0;
-                let totalCredits = 0;
-
-                student.semesters.forEach((sem) => {
-                    const sgpa = sem.sgpa || 0;
-                    const credits = sem.totalCredits || 0;
-                    totalWeightedSgpa += sgpa * credits;
-                    totalCredits += credits;
-                });
-
-                const cgpa = totalCredits > 0 ? (totalWeightedSgpa / totalCredits) : 0;
-
-                // Round to 3 decimal places
-                const roundedCgpa = Math.round(cgpa * 1000) / 1000;
-
-                return { ...student.toObject(), cgpa: roundedCgpa };
-            });
-
-
-            // Find student with highest CGPA
-            const topStudent = studentsWithCgpa.reduce((prev, current) => {
-                return current.cgpa > prev.cgpa ? current : prev;
-            }, studentsWithCgpa[0]);
-
-            return {
-                programme,
+    const topStudents = await Student.aggregate([
+            // Filter only students with 6 or 8 semesters
+            {
+                $match: {
+                $expr: {
+                    $or: [
+                    { $eq: [{$size: "$semesters"}, 6] },
+                    { $eq: [{$size: "$semesters"}, 8] }
+                    ]
+                }
+                }
+            },
+            // Unwind semesters array for CGPA calculation
+            { $unwind: "$semesters" },
+            // Calculate weighted sgpa and credits per semester
+            {
+                $addFields: {
+                weightedSgpa: { $multiply: [{$ifNull: ["$semesters.sgpa", 0]}, {$ifNull: ["$semesters.totalCredits", 0]}] },
+                credits: { $ifNull: ["$semesters.totalCredits", 0] }
+                }
+            },
+            // Group back per student to sum up sgpa*credits and total credits
+            {
+                $group: {
+                _id: "$_id",
+                enrollment: { $first: "$enrollment" },
+                name: { $first: "$name" },
+                instCode: { $first: "$instCode" },
+                batch: { $first: "$batch" },
+                prgCode: { $first: "$prgCode" },
+                programme: { $first: "$programme" },
+                totalWeightedSgpa: { $sum: "$weightedSgpa" },
+                totalCredits: { $sum: "$credits" }
+                }
+            },
+            // Calculate CGPA
+            {
+                $addFields: {
+                cgpa: {
+                    $cond: [
+                    { $gt: ["$totalCredits", 0] },
+                    { $round: [{ $divide: ["$totalWeightedSgpa", "$totalCredits"] }, 3] },
+                    0
+                    ]
+                }
+                }
+            },
+            // Group by program and get student with highest CGPA
+            {
+                $sort: { "programme": 1, "cgpa": -1 }
+            },
+            {
+                $group: {
+                _id: "$programme",
+                topStudent: { $first: "$$ROOT" }
+                }
+            },
+            // Format output
+            {
+                $project: {
+                _id: 0,
+                programme: "$_id",
                 topStudent: {
-                    enrollment: topStudent.enrollment,
-                    name: topStudent.name,
-                    instCode: topStudent.instCode,
-                    batch: topStudent.batch,
-                    prgCode: topStudent.prgCode,
-                    programme: topStudent.programme,
-                    cgpa: topStudent.cgpa,
-                },
-            };
-        })
-    );
+                    enrollment: "$topStudent.enrollment",
+                    name: "$topStudent.name",
+                    instCode: "$topStudent.instCode",
+                    batch: "$topStudent.batch",
+                    prgCode: "$topStudent.prgCode",
+                    programme: "$topStudent.programme",
+                    cgpa: "$topStudent.cgpa"
+                }
+                }
+            }
+]);
+
 
     if (topStudents.length === 0) {
         throw new ApiError(404, "No top students found", []);

@@ -276,69 +276,82 @@ const getStudentsByName = asyncHandler(async (req, res) => {
 
 
 const getTopStudents = asyncHandler(async (req, res) => {
-
-    const programs = await Student.distinct("programme");
-
-    if (!programs || programs.length === 0) {
-        throw new ApiError(404, "No programs found", []);
-    }
-
-    const topStudents = await Promise.all(
-        programs.map(async (programme) => {
-            // Fetch students of this program
-            const students = await Student.find({ programme });
-
-
-
-            // Compute CGPA for each
-            const studentsWithCgpa = students.filter(student => student.semesters.length === 6 || student.semesters.length === 8).map((student) => {
-                let totalWeightedSgpa = 0;
-                let totalCredits = 0;
-
-                student.semesters.forEach((sem) => {
-                    const sgpa = sem.sgpa || 0;
-                    const credits = sem.totalCredits || 0;
-                    totalWeightedSgpa += sgpa * credits;
-                    totalCredits += credits;
-                });
-
-                const cgpa = totalCredits > 0 ? (totalWeightedSgpa / totalCredits) : 0;
-
-                // Round to 3 decimal places
-                const roundedCgpa = Math.round(cgpa * 1000) / 1000;
-
-                return { ...student.toObject(), cgpa: roundedCgpa };
-            });
-
-
-            // Find student with highest CGPA
-            const topStudent = studentsWithCgpa.reduce((prev, current) => {
-                return current.cgpa > prev.cgpa ? current : prev;
-            }, studentsWithCgpa[0]);
-
-            return {
-                programme,
+    const topStudents = await Student.aggregate([
+        {
+            $match: {
+                $expr: {
+                    $in: [{ $size: "$semesters" }, [6, 8]]
+                }
+            }
+        },
+        {
+            $addFields: {
+                cgpa: {
+                    $cond: {
+                        if: { $gt: [{ $size: "$semesters" }, 0] },
+                        then: {
+                            $divide: [
+                                {
+                                    $sum: {
+                                        $map: {
+                                            input: "$semesters",
+                                            as: "sem",
+                                            in: {
+                                                $multiply: [
+                                                    { $ifNull: ["$$sem.sgpa", 0] },
+                                                    { $ifNull: ["$$sem.totalCredits", 0] }
+                                                ]
+                                            }
+                                        }
+                                    }
+                                },
+                                {
+                                    $sum: {
+                                        $map: {
+                                            input: "$semesters",
+                                            as: "sem",
+                                            in: { $ifNull: ["$$sem.totalCredits", 0] }
+                                        }
+                                    }
+                                }
+                            ]
+                        },
+                        else: 0
+                    }
+                }
+            }
+        },
+        { $sort: { programme: 1, cgpa: -1 } },
+        {
+            $group: {
+                _id: "$programme",
+                topStudent: { $first: "$$ROOT" }
+            }
+        },
+        {
+            $project: {
+                _id: 0,
+                programme: "$_id",
                 topStudent: {
-                    enrollment: topStudent.enrollment,
-                    name: topStudent.name,
-                    instCode: topStudent.instCode,
-                    batch: topStudent.batch,
-                    prgCode: topStudent.prgCode,
-                    programme: topStudent.programme,
-                    cgpa: topStudent.cgpa,
-                },
-            };
-        })
-    );
+                    enrollment: "$topStudent.enrollment",
+                    name: "$topStudent.name",
+                    instCode: "$topStudent.instCode",
+                    batch: "$topStudent.batch",
+                    prgCode: "$topStudent.prgCode",
+                    programme: "$topStudent.programme",
+                    cgpa: { $round: ["$topStudent.cgpa", 3] }
+                }
+            }
+        }
+    ]);
 
-    if (topStudents.length === 0) {
+    if (!topStudents.length) {
         throw new ApiError(404, "No top students found", []);
     }
 
-    return res.status(200).json(
-        new ApiResponse(200, topStudents, "Top students fetched successfully")
-    );
-
+    return res
+        .status(200)
+        .json(new ApiResponse(200, topStudents, "Top students fetched successfully"));
 });
 
 

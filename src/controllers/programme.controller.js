@@ -4,23 +4,94 @@ import { ApiError } from "../utils/ApiError.js";
 import { Student } from "../models/student.model.js";
 
 /**
- * @function getProgrammeResult
- * @description
- *   Fetches and aggregates student performance data for a given programme and batch.
- *   - Validates `programme` and `batch` route parameters
- *   - Maps programme short-code to internal prgCode
- *   - Filters out batches before data is available
- *   - Aggregates semesters array to compute total marks, credits, SGPA and overall GPA
- *   - Projects a clean payload of selected fields
- *
- * @route   GET /programme/:programme/:batch
- * @param   {Object}   req.params
- * @param   {string}   req.params.programme  One of "bca", "bba", "bcom"
- * @param   {string}   req.params.batch      Academic batch year (e.g. "2023")
- *
- * @returns {ApiResponse}
- *
+ * @description Fetch all programmes with their code and name
+ * @route GET /programmes
  */
+const getAllProgrammes = asyncHandler(async (req, res) => {
+    const programmes = await Student.aggregate([
+        {
+            $group: {
+                _id: "$prgCode",
+                name: { $first: "$programme" },
+            },
+        },
+        {
+            $project: {
+                _id: 0,
+                prgCode: "$_id",
+                name: 1,
+            },
+        },
+    ]);
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            programmes,
+            `Fetched ${programmes.length} programme(s)`
+        )
+    );
+});
+
+/**
+ * @description Fetch all batches for a given programme
+ * @route GET /programme/:programme/batches
+ */
+const getProgrammeBatches = asyncHandler(async (req, res) => {
+    const { programme } = req.params;
+
+    if (!programme?.trim()) {
+        throw new ApiError(400, "Programme parameter cannot be empty");
+    }
+
+    const prgCodeMap = {
+        bca: "020",
+        bba: "017",
+        bcom: "888",
+    };
+
+    const prgCode = prgCodeMap[programme.trim().toLowerCase()];
+    if (!prgCode) {
+        throw new ApiError(
+            400,
+            `Invalid programme '${programme}'. Valid options: ${Object.keys(prgCodeMap).join(", ")}`
+        );
+    }
+
+    const batches = await Student.distinct("batch", { prgCode });
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            batches,
+            `Fetched ${batches.length} batch(es) for programme '${programme}'`
+        )
+    );
+});
+
+/**
+ * @description Fetch all semesters for a specific programme and batch
+ * @route GET /programme/:prgCode/:batch/semesters
+ */
+const getProgrammeSemesters = asyncHandler(async (req, res) => {
+    const { prgCode, batch } = req.params;
+
+    const semesters = await Student.aggregate([
+        { $match: { prgCode, batch } },
+        { $unwind: "$semesters" },
+        { $group: { _id: "$semesters.sem" } },
+        { $sort: { _id: 1 } },
+        { $project: { _id: 0, semester: "$_id" } } // returns flat array with key 'semester'
+    ]);
+
+    return res.status(200).json(
+        new ApiResponse(
+            200,
+            semesters.map(s => s.semester),
+            `Fetched ${semesters.length} semester(s) for programme code '${prgCode}' and batch '${batch}'`
+        )
+    );
+});
 
 const getProgrammeResult = asyncHandler(async (req, res) => {
     // Destructure and trim inputs
@@ -187,45 +258,4 @@ const getProgrammeResult = asyncHandler(async (req, res) => {
             )
         );
 });
-
-const getProgrammeBatches = asyncHandler(async (req, res) => {
-    // Extract programme from params
-    const { programme } = req.params;
-
-    // Validate programme parameter
-    if (!programme?.trim()) {
-        throw new ApiError(400, "Programme parameter cannot be empty");
-    }
-
-    const prgCodeMap = {
-        bca: "020",
-        bba: "017",
-        bcom: "888",
-    };
-
-    const prgCode = prgCodeMap[programme.trim().toLowerCase()];
-    if (!prgCode) {
-        throw new ApiError(
-            400,
-            `Invalid programme ${programme}. Valid options are: ${Object.keys(
-                prgCodeMap
-            ).join(", ")}`
-        );
-    }
-
-    // Fetch distinct batches for the given programme
-    const batches = await Student.distinct("batch", { prgCode });
-
-    // Return the list of batches
-    return res
-        .status(200)
-        .json(
-            new ApiResponse(
-                200,
-                batches,
-                `Fetched ${batches.length} batch(es) for programme '${programme}'`
-            )
-        );
-});
-
-export { getProgrammeResult, getProgrammeBatches };
+export { getAllProgrammes, getProgrammeBatches, getProgrammeSemesters, getProgrammeResult };

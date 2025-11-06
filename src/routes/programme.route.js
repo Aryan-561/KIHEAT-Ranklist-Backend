@@ -1,13 +1,12 @@
 import express from 'express';
-import { getProgrammeBatches, getProgrammeResult } from '../controllers/programme.controller.js';
-
+import { getAllProgrammes, getProgrammeBatches, getProgrammeSemesters, getProgrammeResult } from '../controllers/programme.controller.js';
 const router = express.Router()
 
-// route used for find students' marks list with specific programme and bacth
-
 // GET /:programme/:batch  eg: /bca/2023 
+router.route('/').get(getAllProgrammes)
 router.route('/:programme').get(getProgrammeBatches)
-router.route('/:programme/:batch').get(getProgrammeResult)
+// router.route('/temp/:programme/:batch').get(getProgrammeResult)
+router.route('/:prgCode/:batch').get(getProgrammeSemesters)
 
 
 

@@ -372,6 +372,63 @@ const getTopStudents = asyncHandler(async (req, res) => {
 });
 
 
+const getStudentMarksheet = asyncHandler(async (req, res) => {
+
+    const { enrollment } = req.params;
+    if (!enrollment?.trim() || enrollment.trim().length !== 11) {
+        throw new ApiError(400, `Invalid enrollment number: '${enrollment}'`);
+    }
+    
+    const {semester} = req.query;
+
+    const student = await Student.findOne({ enrollment });
+
+    if (!student) {
+        throw new ApiError("Student not found", 404);
+    }
 
 
-export { getStudentByEnrollment, getStudentsByName, getTopStudents };
+    
+
+    if(!semester){
+        
+        const data = student.semesters.map(semester => {
+            return {
+                semester: semester.sem,
+                totalMarks: semester.totalMarks,
+                maxMarks: semester.maxMarks,
+                percentage: semester.percentage,
+                sgpa: semester.sgpa
+            };
+        });
+        res.status(200).json(new ApiResponse(200, data, "Marksheet fetched successfully"));
+
+    } else {
+
+        const semNumber = parseInt(semester, 10);
+        if (isNaN(semNumber) || semNumber < 1) {
+            throw new ApiError(400, `Invalid semester number: '${semester}'`);
+        }
+
+        const semesterData = student.semesters.find(sem => sem.sem === semNumber);
+
+
+        if (!semesterData) {
+            throw new ApiError(404, `No data found for semester '${semester}'`);
+        }
+
+        const data = {
+            sem: semesterData.sem,
+            subjectCount: semesterData.subjectCount,
+            subjects: semesterData.subjects
+
+        }
+        res.status(200).json(new ApiResponse(200, data, "Marksheet fetched successfully"));
+
+    }
+        
+})
+
+
+
+export { getStudentByEnrollment, getStudentsByName, getTopStudents, getStudentMarksheet };

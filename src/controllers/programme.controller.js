@@ -91,13 +91,13 @@ const getProgrammeSemesters = asyncHandler(async (req, res) => {
             `Fetched ${semesters.length} semester(s) for programme code '${prgCode}' and batch '${batch}'`
         )
     );
-}); 
+});
 
 const getProgrammeResult = asyncHandler(async (req, res) => {
     // Destructure and trim inputs
-   const { prgCode, batch } = req.params;
-    
-    if(!prgCode?.trim() || !batch?.trim()) {
+    const { prgCode, batch } = req.params;
+
+    if (!prgCode?.trim() || !batch?.trim()) {
         throw new ApiError(400, "Programme code and batch parameters cannot be empty");
     }
 
@@ -109,13 +109,13 @@ const getProgrammeResult = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Invalid batch");
     }
 
-    
+
 
     // Aggregation pipeline to compute totals and GPA
     const students = await Student.aggregate([
         {
             // Filter by programme code and batch
-            $match: { prgCode:prgCode, batch:batch },
+            $match: { prgCode: prgCode, batch: batch },
         },
         {
 
@@ -188,7 +188,7 @@ const getProgrammeResult = asyncHandler(async (req, res) => {
         // },
 
         {
-            $sort:{cgpa:-1}
+            $sort: { cgpa: -1 }
         },
 
         {
@@ -219,7 +219,7 @@ const getProgrammeResult = asyncHandler(async (req, res) => {
         },
     ]);
 
-    
+
 
     // Handle case where no students matched
     if (students.length === 0) {
@@ -244,10 +244,10 @@ const getProgrammeResult = asyncHandler(async (req, res) => {
 
 
 const getProgrammeResultBySemester = asyncHandler(async (req, res) => {
-    
+
     const { prgCode, batch, semester } = req.params;
 
-    if(!prgCode?.trim() || !batch?.trim() || !semester?.trim()) {
+    if (!prgCode?.trim() || !batch?.trim() || !semester?.trim()) {
         throw new ApiError(400, "Programme code, batch and semester parameters cannot be empty");
     }
 
@@ -267,31 +267,31 @@ const getProgrammeResultBySemester = asyncHandler(async (req, res) => {
     const students = await Student.aggregate([
 
         {
-            $match: { prgCode:prgCode, batch:batch },
+            $match: { prgCode: prgCode, batch: batch },
         },
 
         {
-            $addFields:{
-                semester:{
-                    $filter:{
-                        input:"$semesters",
-                        as: "sem", 
-                        cond:{$eq:["$$sem.sem", Number(semester)]}
+            $addFields: {
+                semester: {
+                    $filter: {
+                        input: "$semesters",
+                        as: "sem",
+                        cond: { $eq: ["$$sem.sem", Number(semester)] }
                     }
                 }
             }
         },
 
         {
-            $unwind:"$semester"
+            $unwind: "$semester"
         },
 
         {
             $sort: { "semester.sgpa": -1 }
         },
-        
+
         {
-            $project:{
+            $project: {
                 enrollment: 1,
                 name: 1,
                 sid: 1,
@@ -316,7 +316,7 @@ const getProgrammeResultBySemester = asyncHandler(async (req, res) => {
 
     console.log(students);
 
-     if (students.length === 0) {
+    if (students.length === 0) {
         throw new ApiError(
             404,
             `No students found for programme ${prgCode} in batch ${batch} for semester ${semester}`,
@@ -337,6 +337,12 @@ const getProgrammeResultBySemester = asyncHandler(async (req, res) => {
 
 })
 
+const getEnrollment = asyncHandler(async (req, res) => {
+    const { prgCode, batch } = req.params;
+    const enrollments = await Student.find({ prgCode, batch }).sort('enrollment').select('enrollment name -_id');
+    return res.status(200).json(
+        new ApiResponse(
+            200, enrollments, "Fetched enrollments successfully"))
+})
 
-
-export { getAllProgrammes, getProgrammeBatches, getProgrammeSemesters, getProgrammeResult, getProgrammeResultBySemester };
+export { getAllProgrammes, getProgrammeBatches, getProgrammeSemesters, getProgrammeResult, getProgrammeResultBySemester, getEnrollment };

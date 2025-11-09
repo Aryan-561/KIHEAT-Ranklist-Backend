@@ -91,55 +91,31 @@ const getProgrammeSemesters = asyncHandler(async (req, res) => {
             `Fetched ${semesters.length} semester(s) for programme code '${prgCode}' and batch '${batch}'`
         )
     );
-});
+}); 
 
 const getProgrammeResult = asyncHandler(async (req, res) => {
     // Destructure and trim inputs
-    let { programme, batch } = req.params;
-
-    // Validate presence of parameters
-    if (!programme?.trim()) {
-        throw new ApiError(400, "Programme parameter cannot be empty");
-    }
-    if (!batch?.trim()) {
-        throw new ApiError(400, "Batch parameter cannot be empty");
+   const { prgCode, batch } = req.params;
+    
+    if(!prgCode?.trim() || !batch?.trim()) {
+        throw new ApiError(400, "Programme code and batch parameters cannot be empty");
     }
 
-    programme = programme.trim().toLowerCase();
-    batch = batch.trim();
-
-    // Map of valid programmes to their internal codes
-    const prgCodeMap = {
-        bca: "020",
-        bba: "017",
-        bcom: "888",
-    };
-
-    const prgCode = prgCodeMap[programme];
-    if (!prgCode) {
-        throw new ApiError(
-            400,
-            `Invalid programme ${programme}. Valid options are: ${Object.keys(
-                prgCodeMap
-            ).join(", ")}`
-        );
+    if (!["020", "017", "888"].includes(prgCode.trim())) {
+        throw new ApiError(400, "Invalid programme code");
     }
 
-    // No data exists before 2022
-    const batchYear = Number(batch);
-    if (isNaN(batchYear) || batchYear < 2022) {
-        throw new ApiError(
-            404,
-            `No result data available for batch ${batch}`,
-            []
-        );
+    if (isNaN(Number(batch)) || Number(batch) < 2022) {
+        throw new ApiError(400, "Invalid batch");
     }
+
+    
 
     // Aggregation pipeline to compute totals and GPA
     const students = await Student.aggregate([
         {
             // Filter by programme code and batch
-            $match: { prgCode, batch },
+            $match: { prgCode:prgCode, batch:batch },
         },
         {
 
@@ -147,8 +123,8 @@ const getProgrammeResult = asyncHandler(async (req, res) => {
                 semestersCount: { $size: { $ifNull: ["$semesters", []] } },
                 totalMarks: { $sum: "$semesters.totalMarks" },
                 maxMarks: { $sum: "$semesters.maxMarks" },
-                totalCreditMarks: { $sum: "$semesters.totalCreditMarks" },
-                maxCreditMarks: { $sum: "$semesters.maxCreditMarks" },
+                // totalCreditMarks: { $sum: "$semesters.totalCreditMarks" },
+                // maxCreditMarks: { $sum: "$semesters.maxCreditMarks" },
                 totalCredits: { $sum: "$semesters.totalCredits" },
                 maxCredits: { $sum: "$semesters.maxCredits" },
                 totalWeightedSGPA: {
@@ -190,26 +166,31 @@ const getProgrammeResult = asyncHandler(async (req, res) => {
                     ]
                 },
 
-                creditPrecentage: {
-                    $round: [{
-                        $multiply: [
-                            { $divide: ["$totalCreditMarks", "$maxCreditMarks"] },
-                            100
-                        ]
-                    }, 3]
-                }
+                // creditPrecentage: {
+                //     $round: [{
+                //         $multiply: [
+                //             { $divide: ["$totalCreditMarks", "$maxCreditMarks"] },
+                //             100
+                //         ]
+                //     }, 3]
+                // }
             }
         },
+        // {
+        //     $addFields: {
+        //         semesters: {
+        //             $sortArray: {
+        //                 input: "$semesters",
+        //                 sortBy: { sem: 1 }  // Ascending by semester number
+        //             }
+        //         }
+        //     }
+        // },
+
         {
-            $addFields: {
-                semesters: {
-                    $sortArray: {
-                        input: "$semesters",
-                        sortBy: { sem: 1 }  // Ascending by semester number
-                    }
-                }
-            }
+            $sort:{cgpa:-1}
         },
+
         {
             // Project only the desired fields
             $project: {
@@ -221,28 +202,30 @@ const getProgrammeResult = asyncHandler(async (req, res) => {
                 batch: 1,
                 prgCode: 1,
                 programme: 1,
-                totalSGPA: 1,
+                // totalSGPA: 1,
                 totalMarks: 1,
                 maxMarks: 1,
-                totalCreditMarks: 1,
-                maxCreditMarks: 1,
+                // totalCreditMarks: 1,
+                // maxCreditMarks: 1,
                 semestersCount: 1,
                 totalCredits: 1,
                 maxCredits: 1,
                 cgpa: 1,
                 percentage: 1,
-                creditPrecentage: 1,
-                semesters: 1,
+                // creditPrecentage: 1,
+                // semesters: 1,
 
             },
         },
     ]);
 
+    
+
     // Handle case where no students matched
     if (students.length === 0) {
         throw new ApiError(
             404,
-            `No students found for programme ${programme} in batch ${batch}`,
+            `No students found for programme ${prgCode} in batch ${batch}`,
             []
         );
     }
@@ -254,8 +237,106 @@ const getProgrammeResult = asyncHandler(async (req, res) => {
             new ApiResponse(
                 200,
                 students,
-                `Fetched ${students.length} student(s) for programme "${programme}" in batch ${batch}`
+                `Fetched ${students.length} student(s) for programme "${prgCode}" in batch ${batch}`
             )
         );
 });
-export { getAllProgrammes, getProgrammeBatches, getProgrammeSemesters, getProgrammeResult };
+
+
+const getProgrammeResultBySemester = asyncHandler(async (req, res) => {
+    
+    const { prgCode, batch, semester } = req.params;
+
+    if(!prgCode?.trim() || !batch?.trim() || !semester?.trim()) {
+        throw new ApiError(400, "Programme code, batch and semester parameters cannot be empty");
+    }
+
+    if (!["020", "017", "888"].includes(prgCode.trim())) {
+        throw new ApiError(400, "Invalid programme code");
+    }
+
+    if (isNaN(Number(batch)) || Number(batch) < 2022) {
+        throw new ApiError(400, "Invalid batch");
+    }
+
+    if (isNaN(Number(semester)) || Number(semester) < 1) {
+        throw new ApiError(400, "Invalid semester");
+    }
+
+
+    const students = await Student.aggregate([
+
+        {
+            $match: { prgCode:prgCode, batch:batch },
+        },
+
+        {
+            $addFields:{
+                semester:{
+                    $filter:{
+                        input:"$semesters",
+                        as: "sem", 
+                        cond:{$eq:["$$sem.sem", Number(semester)]}
+                    }
+                }
+            }
+        },
+
+        {
+            $unwind:"$semester"
+        },
+
+        {
+            $sort: { "semester.sgpa": -1 }
+        },
+        
+        {
+            $project:{
+                enrollment: 1,
+                name: 1,
+                sid: 1,
+                schemeID: 1,
+                instCode: 1,
+                batch: 1,
+                prgCode: 1,
+                programme: 1,
+                totalMarks: "$semester.totalMarks",
+                maxMarks: "$semester.maxMarks",
+                totalCredits: "$semester.totalCredits",
+                maxCredits: "$semester.maxCredits",
+                percentage: "$semester.percentage",
+                sem: "$semester.sem",
+                // subjectCount: "$semester.subjectsCount",
+                sgpa: "$semester.sgpa",
+            }
+        }
+
+
+    ]);
+
+    console.log(students);
+
+     if (students.length === 0) {
+        throw new ApiError(
+            404,
+            `No students found for programme ${prgCode} in batch ${batch} for semester ${semester}`,
+            []
+        );
+    }
+
+    // Success response
+    return res
+        .status(200)
+        .json(
+            new ApiResponse(
+                200,
+                students,
+                `Fetched ${students.length} student(s) for programme "${prgCode}" in batch ${batch} for semester ${semester}`
+            )
+        );
+
+})
+
+
+
+export { getAllProgrammes, getProgrammeBatches, getProgrammeSemesters, getProgrammeResult, getProgrammeResultBySemester };

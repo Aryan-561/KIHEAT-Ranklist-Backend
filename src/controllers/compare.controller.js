@@ -196,4 +196,11 @@ export const getCompareResult = asyncHandler(async (req, res) => {
 
 });
 
+export const getEnrollments =  asyncHandler(async (req, res) => {
+    const {prgCode, batch} = req.params;
+    const enrollments = await Student.find({prgCode, batch}).sort('enrollment').select('enrollment name -_id');
+    return res.status(200).json(
+        new ApiResponse(
+            200, enrollments, "Fetched enrollments successfully"))
+})
 

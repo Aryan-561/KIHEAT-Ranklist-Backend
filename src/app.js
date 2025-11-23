@@ -1,5 +1,6 @@
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 
 const app = express();
 
@@ -14,6 +15,16 @@ app.use(express.static('public'));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// rate limiter
+const limiter = rateLimit({
+    windowMs: 5*60*1000,
+    max: 30,
+    standardHeaders: true,
+    legacyHeaders: false,
+    message: "Too many requests from this IP, please try again after 5 minutes"
+})
+
+app.use(limiter);
 
 import resultUploadRouter from './routes/resultUpload.route.js';
 import programmeRouter from './routes/programme.route.js'

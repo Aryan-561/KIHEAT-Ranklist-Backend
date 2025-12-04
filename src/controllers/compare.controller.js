@@ -82,12 +82,12 @@ export const getCompareResult = asyncHandler(async (req, res) => {
         // 5. compute totals / maxima / minima / counts / sgpa stats
         {
             $addFields: {
-                totalAllSemesters: {
+                totalMarks: {
                     $sum: {
                         $map: { input: { $ifNull: ["$semestersNormalized", []] }, as: "s", in: { $ifNull: ["$$s.semTotal", 0] } }
                     }
                 },
-                maxAllSemesters: {
+                maxMarks: {
                     $sum: {
                         $map: { input: { $ifNull: ["$semestersNormalized", []] }, as: "s", in: { $ifNull: ["$$s.semMax", 0] } }
                     }
@@ -153,8 +153,8 @@ export const getCompareResult = asyncHandler(async (req, res) => {
             $addFields: {
                 percentage: {
                     $cond: [
-                        { $gt: ["$maxAllSemesters", 0] },
-                        { $multiply: [{ $divide: ["$totalAllSemesters", "$maxAllSemesters"] }, 100] },
+                        { $gt: ["$maxMarks", 0] },
+                        { $multiply: [{ $divide: ["$totalMarks", "$maxMarks"] }, 100] },
                         null
                     ]
                 }
@@ -171,8 +171,8 @@ export const getCompareResult = asyncHandler(async (req, res) => {
                 batch: 1,
 
                 // requested fields
-                totalAllSemesters: 1,
-                maxAllSemesters: 1,
+                totalMarks: 1,
+                maxMarks: 1,
                 internalTotal: 1,
                 externalTotal: 1,
                 percentage: 1,

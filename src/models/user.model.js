@@ -29,7 +29,7 @@ const userSchema = new Schema({
         immutable: true,
     }
 
-})
+}, { timestamps: true });
 
 
 export const User = mongoose.model('User',userSchema);

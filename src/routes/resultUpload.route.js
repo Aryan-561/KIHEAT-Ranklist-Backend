@@ -2,7 +2,12 @@ import express from 'express';
 import {upload} from '../middlewares/multer.middleware.js';
 import { processReappearResults, processResults } from '../controllers/resultUpload.controller.js';
 import {cleanTempFolderMiddleware} from '../middlewares/cleanTemp.middleware.js';
+import { authenticatedUser, currentSession } from '../middleware/auth.middleware.js';
+
+
 const router = express.Router();
+
+router.use(currentSession, authenticatedUser)
 
 router.route('/upload').post(cleanTempFolderMiddleware, upload.single('file'), processResults);
 

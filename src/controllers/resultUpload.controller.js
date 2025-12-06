@@ -5,6 +5,7 @@ import { Student } from "../models/student.model.js";
 import { cleanTempFolder } from "../utils/clearTemp.js";
 import { runPythonScript } from "../utils/runPythonScript.js";
 import mongoose from "mongoose";
+import { User } from "../models/user.model.js";
 
 
 
@@ -60,6 +61,24 @@ const calSGPA = (subjects, maxCredits) => {
  */
 
 const processResults = asyncHandler(async (req, res) => {
+
+        const userSession = res.locals.session;
+    
+        if(!userSession.user){
+            throw new ApiError(401, "Not Authenticated");
+        }
+
+        const user = userSession.user;
+        const existUser = await User.findById(user.id);
+        
+        if(!existUser){
+            throw new ApiError(401, "User not found");
+        }
+
+        if(!existUser.isAdmin){
+            throw new ApiError(403, "Access denied. You are not authorized to perform this action.");
+        }
+
 
         // ✅ Check if file uploaded
         const filePath = req.file?.path;
@@ -256,6 +275,24 @@ const processResults = asyncHandler(async (req, res) => {
  */
 
 const processReappearResults = asyncHandler(async (req, res) => {
+        
+        const userSession = res.locals.session;
+    
+        if(!userSession.user){
+            throw new ApiError(401, "Not Authenticated");
+        }
+
+        const user = userSession.user;
+        const existUser = await User.findById(user.id);
+        
+        if(!existUser){
+            throw new ApiError(401, "User not found");
+        }
+
+        if(!existUser.isAdmin){
+            throw new ApiError(403, "Access denied. You are not authorized to perform this action.");
+        }
+
         const filePath = req.file?.path;
         if (!filePath) {
             throw new ApiError(400, "File not found");

@@ -3,7 +3,7 @@ import { User } from "./models/user.model.js";
 
 export const authConfig = {
     trustHost: true,
-    basePath: "/auth",
+    basePath: "/api/v2/auth",
     providers: [
         Google({
             clientId: process.env.GOOGLE_CLIENT_ID,

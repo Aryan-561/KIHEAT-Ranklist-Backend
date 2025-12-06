@@ -337,12 +337,5 @@ const getProgrammeResultBySemester = asyncHandler(async (req, res) => {
 
 })
 
-const getEnrollment = asyncHandler(async (req, res) => {
-    const { prgCode, batch } = req.params;
-    const enrollments = await Student.find({ prgCode, batch }).sort('enrollment').select('enrollment name -_id');
-    return res.status(200).json(
-        new ApiResponse(
-            200, enrollments, "Fetched enrollments successfully"))
-})
 
-export { getAllProgrammes, getProgrammeBatches, getProgrammeSemesters, getProgrammeResult, getProgrammeResultBySemester, getEnrollment };
+export { getAllProgrammes, getProgrammeBatches, getProgrammeSemesters, getProgrammeResult, getProgrammeResultBySemester };

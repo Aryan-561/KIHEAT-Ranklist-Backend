@@ -190,7 +190,14 @@ const getProgrammeResult = asyncHandler(async (req, res) => {
         {
             $sort: { cgpa: -1 }
         },
-
+        {
+            $setWindowFields: {
+                sortBy: { cgpa: -1 },
+                output: {
+                    rank: { $rank: {} }
+                }
+            }
+        },
         {
             // Project only the desired fields
             $project: {
@@ -212,6 +219,7 @@ const getProgrammeResult = asyncHandler(async (req, res) => {
                 maxCredits: 1,
                 cgpa: 1,
                 percentage: 1,
+                rank: 1,
                 // creditPrecentage: 1,
                 // semesters: 1,
 
@@ -289,7 +297,14 @@ const getProgrammeResultBySemester = asyncHandler(async (req, res) => {
         {
             $sort: { "semester.sgpa": -1 }
         },
-
+        {
+            $setWindowFields:{
+                sortBy: { "semester.sgpa": -1 },
+                output: {
+                    rank: { $rank: {} }
+                }
+            }
+        },
         {
             $project: {
                 enrollment: 1,
@@ -306,6 +321,7 @@ const getProgrammeResultBySemester = asyncHandler(async (req, res) => {
                 maxCredits: "$semester.maxCredits",
                 percentage: "$semester.percentage",
                 sem: "$semester.sem",
+                rank: 1,
                 // subjectCount: "$semester.subjectsCount",
                 sgpa: "$semester.sgpa",
             }

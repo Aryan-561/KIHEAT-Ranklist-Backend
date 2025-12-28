@@ -35,36 +35,31 @@ const getAllProgrammes = asyncHandler(async (req, res) => {
 
 /**
  * @description Fetch all batches for a given programme
- * @route GET /programme/:programme/batches
+ * @route GET /programme/batch/:prgCode
  */
 const getProgrammeBatches = asyncHandler(async (req, res) => {
-    const { programme } = req.params;
+    const { prgCode } = req.params;
 
-    if (!programme?.trim()) {
+    if (!prgCode?.trim()) {
         throw new ApiError(400, "Programme parameter cannot be empty");
     }
 
-    const prgCodeMap = {
-        bca: "020",
-        bba: "017",
-        bcom: "888",
-    };
+    const trimmedPrgCode = prgCode.trim();
 
-    const prgCode = prgCodeMap[programme.trim().toLowerCase()];
-    if (!prgCode) {
-        throw new ApiError(
-            400,
-            `Invalid programme '${programme}'. Valid options: ${Object.keys(prgCodeMap).join(", ")}`
-        );
+    const prgCodeAvailable = await Student.exists({ prgCode: trimmedPrgCode });
+    if (!prgCodeAvailable) {
+        throw new ApiError(404, `Programme with code '${trimmedPrgCode}' not found`);
     }
 
-    const batches = await Student.distinct("batch", { prgCode });
+    
+
+    const batches = await Student.distinct("batch", { prgCode: trimmedPrgCode });
 
     return res.status(200).json(
         new ApiResponse(
             200,
             batches,
-            `Fetched ${batches.length} batch(es) for programme '${programme}'`
+            `Fetched ${batches.length} batch(es) for prgcode '${trimmedPrgCode}'`
         )
     );
 });
@@ -330,7 +325,7 @@ const getProgrammeResultBySemester = asyncHandler(async (req, res) => {
 
     ]);
 
-    console.log(students);
+    // console.log(students);
 
     if (students.length === 0) {
         throw new ApiError(

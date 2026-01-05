@@ -192,7 +192,7 @@ export const getCompareResult = asyncHandler(async (req, res) => {
     if (students.length !== 2) {
         throw new ApiError(404, 'One or both students not found');
     }
-    res.status(200).json(new ApiResponse(200, 'Compare result fetched successfully', { students }));
+    res.status(200).json(new ApiResponse(200, { students }, 'Compare result fetched successfully'));
 
 });
 

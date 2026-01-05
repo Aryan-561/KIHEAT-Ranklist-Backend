@@ -4,6 +4,26 @@ import { User } from "./models/user.model.js";
 export const authConfig = {
     trustHost: true,
     basePath: "/api/v2/auth",
+    cookies: {
+    csrfToken: {
+      name: "__Host-authjs.csrf-token",
+      options: {
+        httpOnly: true,
+        sameSite: "none",
+        secure: true,
+        path: "/",
+      },
+    },
+    sessionToken: {
+      name: "__Host-authjs.session-token",
+      options: {
+        httpOnly: true,
+        sameSite: "none",
+        secure: true,
+        path: "/",
+      },
+    },
+  },
     providers: [
         Google({
             clientId: process.env.GOOGLE_CLIENT_ID,
